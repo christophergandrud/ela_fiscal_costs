@@ -19,11 +19,27 @@ library(countrycode)
 setwd('/git_repositories/ela_fiscal_costs/source/')
 
 #### Gather Data ###############################################################
-indicators <- c('GFDD.DI.06', 'GFDD.DI.02')
+indicators <- c('GFDD.DI.06', 'FS.AST.DOMS.GD.ZS', 'GFDD.DI.02')
 
 wdi <- WDI(indicator = indicators, start = 1990, end = 2013) %>%
         rename(CentralBankAssetsGDP = GFDD.DI.06,
-                BankAssetsGDP = GFDD.DI.02)
+               DomesticCreditGDP = FS.AST.DOMS.GD.ZS,
+               DepositBankAssetsGDP = GFDD.DI.02)
+
+# Bank assets %GDP
+assets <- data.table::fread('data/raw/Bank Assets (As % Of GDP).csv') %>%
+            select(1, 3:62)
+class(assets) <- 'data.frame'
+names(assets) <- c('country', 1960:2019)
+
+assets_gathered <- gather(assets, year, BankAssetsGDP, 2:ncol(assets))
+
+# For years when BankAssetsGDP == 0, then 0.1
+assets_gathered$BankAssetsGDP[assets_gathered$BankAssetsGDP == 0] <- NA
+
+assets_gathered$iso2c <- countrycode(assets_gathered$country, 
+                                     origin = 'country.name', 
+                                     destination = 'iso2c')
 
 # EU Membership
 eu <- "https://raw.githubusercontent.com/christophergandrud/BankingUnionMaps/master/csv/BankingUnionMembers.csv" %>%
@@ -68,14 +84,20 @@ dr_gathered <- select(dr_gathered, -country) %>%
                             filter(year >= 1990)
 
 #### Merge #####################################################################
-comb <- merge(wdi, costs, all.x = TRUE)
+comb <- merge(wdi, assets_gathered, all.x = TRUE)
+comb <- merge(comb, costs, all.x = TRUE)
 comb <- merge(comb, dr_gathered, all.x = TRUE)
 comb <- merge(eu, comb, all = TRUE, by = 'iso2c')
+
+comb <- comb[!duplicated(comb[, c('iso2c', 'year')]), ]
 
 comb <- FillIn(comb, dr_euro, Var1 = 'discount_rate',
                KeyVar = c('membership', 'year')) %>%
             arrange(iso2c, year)
 
+temp_assets <- comb[, c('iso2c', 'year', 'DepositBankAssetsGDP')]
+comb <- FillIn(comb, temp_assets, Var1 = 'BankAssetsGDP', 
+               Var2 = 'DepositBankAssetsGDP')
 
 #### Clean Up, lag, log ########################################################
 # Creat Europe/JP/US group
@@ -85,7 +107,7 @@ comb$grouping[!is.na(comb$membership)] <- 'Europe/JP/US'
 comb$grouping <- factor(comb$grouping)
 
 # Create 1 year lags
-for (i in c("CentralBankAssetsGDP", "BankAssetsGDP")){
+for (i in c("CentralBankAssetsGDP", "BankAssetsGDP", "DepositBankAssetsGDP")){
     comb <- slide(comb, Var = i, GroupVar = 'iso2c', slideBy = -1,
                   NewVar = paste0(i, '_lag1'))
 }
@@ -96,6 +118,13 @@ comb <- slideMA(comb, Var = 'discount_rate', GroupVar = 'iso2c',
                              periodBound = 2, offset = 0, 
                              NewVar = 'discount_rate_ma3')
 
+# Domestic credit change and 3 year moving average
+comb <- PercChange(comb, Var = 'DomesticCreditGDP', GroupVar = 'iso2c',
+                   NewVar = "DomesticCredit_change")
+comb <- slideMA(comb, Var = "DomesticCredit_change", GroupVar = 'iso2c',
+                periodBound = -3, offset = 1, 
+                NewVar = 'DomesticCredit_change_ma3')
+
 # Keep only crisis years
 comb_sub <- subset(comb, !is.na(LV2012.Fiscal))
 
@@ -103,17 +132,13 @@ comb_sub <- subset(comb, !is.na(LV2012.Fiscal))
 comb_sub$costs_deviation <- comb_sub$LV2012.Fiscal / comb_sub$BankAssetsGDP_lag1
 
 # Create log variables
-vars <- c('CentralBankAssetsGDP_lag1', 'BankAssetsGDP_lag1',
+vars <- c('CentralBankAssetsGDP_lag1', 'BankAssetsGDP_lag1', 
+          'DepositBankAssetsGDP_lag1', 'DomesticCredit_change_ma3',
           'discount_rate', 'discount_rate_ma3', 'LV2012.Fiscal', 
           'costs_deviation')
 for (i in vars) {
     comb_sub[, paste0(i, '_log')] <- log(comb_sub[, i])
 }
-
-# Drop countries with no crisis costs.
-## These create -Inf log values and, as in the case of Portugal 2008, are
-## implossible.
-comb_sub <- subset(comb_sub, costs_deviation_log != -Inf)
 
 # Save data as CSV
 write.csv(comb_sub, file = 'data/main_data.csv', row.names = FALSE)
