@@ -77,7 +77,8 @@ rmNA <- function(data, vars) {
 vars_dr <- c('iso2c', 'costs_deviation_log', 'discount_rate_ma3_log', 'eurozone')
 sub_dr <- rmNA(sub, vars_dr)
 
-rf1 <- randomForest(costs_deviation_log ~ discount_rate_ma3_log + eurozone, sub_dr, 
+rf1 <- randomForest(costs_deviation_log ~ discount_rate_ma3_log + eurozone, 
+                    data = sub_dr, 
                     importance = T, do.trace=100)
 
 # Predict costs from model
@@ -93,6 +94,7 @@ ggplot(sub_dr_predict, aes(costs_deviation_log, rf1_est, color = eurozone)) +
         ylab('Predicted costs deviation\n') +
         theme_bw()
 
+disk <- sub %>% select(country, year, discount_rate)
 
 m1 <- lm(LV2012.Fiscal ~ DomesticCredit_change_ma3,
          data = sub)

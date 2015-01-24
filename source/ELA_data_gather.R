@@ -14,6 +14,7 @@ library(xlsx)
 library(tidyr)
 library(lubridate)
 library(countrycode)
+library(quantmod)
 
 # Set working directory. Change as needed.
 setwd('/git_repositories/ela_fiscal_costs/source/')
@@ -84,6 +85,14 @@ dr_uk$country <- 'United Kingdom'
 
 dr_gathered <- bind_rows(dr_gathered, dr_uk)
 
+# Insert Norwegian key rate
+dr_no <- read.csv('data/raw/norway_key_rate.csv',
+                  stringsAsFactors = FALSE) %>%
+            rename(year = date, discount_rate = rate)
+dr_no$country <- 'Norway'
+
+dr_gathered <- bind_rows(dr_gathered, dr_no)
+
 # Insert Swedish discount/reference rate
 dr_se <- read.csv('data/raw/sweden_annual_reference_discount_rate.csv',
                   stringsAsFactors = FALSE) %>%
@@ -91,6 +100,19 @@ dr_se <- read.csv('data/raw/sweden_annual_reference_discount_rate.csv',
 dr_se$country <- 'Sweden'
 
 dr_gathered <- bind_rows(dr_gathered, dr_se)
+
+# Insert Russian discount rate from FRED
+dr_ru <- as.data.frame(
+    getSymbols(Symbols = 'INTDSRRUM193N', src = 'FRED', auto.assign = F))
+dr_ru$date <- row.names(dr_ru)
+dr_ru$year <- dr_ru$date %>% ymd() %>% year()
+dr_ru <- dr_ru %>% group_by(year) %>%
+            mutate(discount_rate = mean(INTDSRRUM193N))
+dr_ru <- dr_ru %>% select(year, discount_rate)
+dr_ru <- dr_ru[!duplicated(dr_ru[, 'year']), ]
+dr_ru$country <- 'Russia'
+
+dr_gathered <- bind_rows(dr_gathered, dr_ru)
 
 # Add iso2c
 dr_gathered$iso2c <- countrycode(dr_gathered$country,

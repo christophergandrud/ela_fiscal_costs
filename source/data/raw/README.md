@@ -9,6 +9,8 @@ The **discount rate per annum** is gathered from the following sources:
 - [Bank of England Interactive Database](http://www.bankofengland.co.uk/boeapps/iadb/NewInterMed.asp)
 (annual average, code: IUAABEDR)
 
+- [Norges Bank](http://www.norges-bank.no/en/Statistics/Interest-rates/Key-policy-rate-annual/)
+
 - [Sveriges Riksbank](http://www.riksbank.se/en/Interest-and-exchange-rates/search-interest-rates-exchange-rates)
 (reference rate from 1 July 2002, discount rate before)
 
