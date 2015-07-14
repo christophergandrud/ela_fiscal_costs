@@ -1,7 +1,6 @@
 ################################################################################
 # Gather data on crisis costs, banking system size, and discount rate
 # Christopher Gandrud
-# 23 January 2015
 # MIT License
 ################################################################################
 
@@ -9,6 +8,7 @@
 library(dplyr)
 library(WDI)
 library(repmis)
+library(rio)
 library(DataCombine)
 library(xlsx)
 library(tidyr)
@@ -29,11 +29,11 @@ wdi <- WDI(indicator = indicators, start = 1990, end = 2013, extra = T) %>%
                DomesticCreditGDP = FS.AST.DOMS.GD.ZS,
                DepositBankAssetsGDP = GFDD.DI.02,
                CapitalAssets = FB.BNK.CAPA.ZS) %>% 
-        select(-iso3c, -capital, -longitude, -latitude, -income, - lending) %>%
+        select(-iso3c, -capital, -longitude, -latitude, -income, -lending) %>%
         filter(region != 'Aggregates')
 
 ## Bank assets %GDP
-assets <- data.table::fread('data/raw/Bank Assets (As % Of GDP).csv') %>%
+assets <- import('data/raw/Bank Assets (As % Of GDP).csv', head = T) %>%
             select(1, 3:62)
 class(assets) <- 'data.frame'
 names(assets) <- c('country', 1960:2019)
