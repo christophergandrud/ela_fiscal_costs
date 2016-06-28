@@ -55,13 +55,15 @@ dev.off()
 png('figures/DiscountRate_CostsStnd.png')
 ggplot(sub, aes(discount_rate_ma3_log, costs_deviation_log,
                      label = iso2c, color = eurozone)) +
-    geom_text(size = 4) +
+    geom_text(size = 4, position = position_dodge()) +
     stat_smooth(method = 'lm', se = F) +
     scale_color_brewer(palette = 'Set1') +
     xlab('\nDiscount rate (log, 3 year average lead)') +
     ylab('Fiscal costs / Bank Assets (log, 1 year lag)\n') +
     theme_bw()
 dev.off()
+
+m1 <- lm(costs_deviation_log ~ discount_rate_ma3_log, data = sub)
 
 #### Exploritory regressions
 # RandomForests
