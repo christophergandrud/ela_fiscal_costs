@@ -9,11 +9,7 @@ import sympy as sp
 from sympy.abc import eta, gamma
 
 # Define symbols (eta and gamma imported)
-A, AN, AP, la,  AD = sp.symbols('A A_N, A_P, \lambda A_d')
-
-#######
-# Simplified form of proportion of liquid assets
-lambdaA = (1 - la) * gamma * AN + la * (1 - gamma) * AP
+A, AD = sp.symbols('A A_d')
 
 print(sp.latex(lambdaA))
 
